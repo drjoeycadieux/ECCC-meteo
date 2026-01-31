@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MSC Weather Dashboard + Alert Banner</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css"
+    />
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Segoe UI", sans-serif;
+        background: #121212;
+        color: white;
+      }
+
+      .dashboard {
+        display: grid;
+        grid-template-areas:
+          "header header"
+          "sidebar alert-bar"
+          "sidebar map"
+          "footer footer";
+        grid-template-rows: 60px 40px 1fr 30px;
+        grid-template-columns: 280px 1fr;
+        height: 100vh;
+      }
+
+      header {
+        grid-area: header;
+        background: #1a1a1a;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        border-bottom: 2px solid #333;
+        z-index: 10;
+      }
+      footer {
+        grid-area: footer;
+        background: #1a1a1a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75em;
+        color: #666;
+      }
+      aside {
+        grid-area: sidebar;
+        background: #222;
+        padding: 20px;
+        border-right: 1px solid #333;
+        overflow-y: auto;
+      }
+      #map {
+        grid-area: map;
+        background: #000;
+      }
+
+      /* Alert Banner Styling */
+      #alert-banner {
+        grid-area: alert-bar;
+        background: #b91c1c; /* Warning Red */
+        color: white;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        font-size: 0.9em;
+        font-weight: bold;
+        overflow: hidden;
+        white-space: nowrap;
+        border-bottom: 1px solid #7f1d1d;
+      }
+
+      .ticker {
+        display: inline-block;
+        padding-left: 100%;
+        animation: ticker 30s linear infinite;
+      }
+
+      @keyframes ticker {
+        0% {
+          transform: translate(0, 0);
+        }
+        100% {
+          transform: translate(-100%, 0);
+        }
+      }
+
+      .section-title {
+        font-weight: bold;
+        color: #00d4ff;
+        margin-bottom: 10px;
+        font-size: 0.85em;
+        text-transform: uppercase;
+        border-bottom: 1px solid #333;
+        padding-bottom: 5px;
+        margin-top: 15px;
+      }
+      #legend img,
+      #alert-legend img {
+        width: 100%;
+        border-radius: 4px;
+        background: #333;
+        padding: 5px;
+        margin-bottom: 10px;
+      }
+      .status-box {
+        margin-top: 20px;
+        padding: 10px;
+        background: #2a2a2a;
+        border-radius: 5px;
+        font-size: 0.85em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard">
+      <header>
+        <h2 style="margin: 0; font-size: 1.1em">
+          MSC GEOMET <span style="font-weight: 100">| EMERGENCY DASHBOARD</span>
+        </h2>
+      </header>
+
+      <div id="alert-banner">
+        <div class="ticker" id="alert-ticker">
+          LOADING ACTIVE ECCC WEATHER ALERTS... PLEASE WAIT...
+        </div>
+      </div>
+
+      <aside>
+        <div class="section-title">Active Alert Legend</div>
+        <div id="alert-legend"></div>
+
+        <div class="section-title">Radar Legend</div>
+        <div id="legend"></div>
+
+        <div class="status-box">
+          <b>Radar Time:</b>
+          <span id="time-display" style="color: #ff0055">Syncing...</span>
+        </div>
+      </aside>
+
+      <div id="map"></div>
+
+      <footer>ECCC Open Data © 2026 | Geostationary Data via MSC GeoMet</footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js"></script>
+    <script>
+      const GEOMET_URL = "https://geo.weather.gc.ca/geomet";
+      const RADAR_LAYER = "Radar_1km_SfcPrecipType";
+      const ALERTS_LAYER = "ALERTS";
+
+      // 1. Base Map
+      const baseLayer = new ol.layer.Tile({
+        source: new ol.source.XYZ({
+          url: "https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+          crossOrigin: "anonymous",
+        }),
+      });
+
+      // 2. Alerts Layer
+      const alertsSource = new ol.source.ImageWMS({
+        url: GEOMET_URL,
+        crossOrigin: "anonymous",
+        params: {
+          LAYERS: ALERTS_LAYER,
+          FORMAT: "image/png",
+          TRANSPARENT: true,
+          VERSION: "1.3.0",
+        },
+        serverType: "geoserver",
+      });
+      const alertsLayer = new ol.layer.Image({
+        source: alertsSource,
+        opacity: 0.5,
+      });
+
+      // 3. Radar Layer
+      const radarSource = new ol.source.ImageWMS({
+        url: GEOMET_URL,
+        crossOrigin: "anonymous",
+        params: {
+          LAYERS: RADAR_LAYER,
+          FORMAT: "image/png",
+          TRANSPARENT: true,
+          VERSION: "1.3.0",
+        },
+        serverType: "geoserver",
+      });
+      const radarLayer = new ol.layer.Image({
+        source: radarSource,
+        opacity: 0.8,
+      });
+
+      // 4. Map
+      const map = new ol.Map({
+        target: "map",
+        layers: [baseLayer, alertsLayer, radarLayer],
+        view: new ol.View({ center: ol.proj.fromLonLat([-95, 55]), zoom: 4 }),
+      });
+
+      // 5. Update Timer & Banner Text
+      function updateMapData() {
+        const now = new Date();
+        const safeTime = new Date(now.getTime() - 12 * 60 * 1000);
+        const roundedMinutes = Math.floor(safeTime.getMinutes() / 6) * 6;
+        safeTime.setMinutes(roundedMinutes, 0, 0);
+        const timeStr = safeTime.toISOString().split(".")[0] + "Z";
+
+        radarSource.updateParams({ TIME: timeStr });
+        alertsSource.updateParams({ t: now.getTime() });
+
+        document.getElementById("time-display").innerText = timeStr.replace(
+          "T",
+          " "
+        );
+
+        // In a real app, you would fetch JSON alerts here.
+        // For this demo, we'll set a standard ECCC awareness message.
+        document.getElementById("alert-ticker").innerText =
+          "ATTENTION: VIEW ACTIVE POLYGONS ON MAP FOR DETAILED WARNINGS, WATCHES, AND ADVISORIES ISSUED BY ENVIRONMENT CANADA. CLICK MAP FEATURES FOR INFO.";
+      }
+
+      // 6. Interaction: Click to see Alert Info
+      map.on("singleclick", function (evt) {
+        const viewResolution = map.getView().getResolution();
+        const url = alertsSource.getFeatureInfoUrl(
+          evt.coordinate,
+          viewResolution,
+          "EPSG:3857",
+          { INFO_FORMAT: "text/plain" }
+        );
+        if (url) {
+          fetch(url)
+            .then((response) => response.text())
+            .then((data) => {
+              if (data.includes("no features were found")) return;
+              alert("ECCC ALERT INFO:\n" + data);
+            });
+        }
+      });
+
+      const getLegend = (layer) =>
+        `${GEOMET_URL}?version=1.3.0&service=WMS&request=GetLegendGraphic&sld_version=1.1.0&layer=${layer}&format=image/png`;
+      document.getElementById("legend").innerHTML = `<img src="${getLegend(
+        RADAR_LAYER
+      )}">`;
+      document.getElementById(
+        "alert-legend"
+      ).innerHTML = `<img src="${getLegend(ALERTS_LAYER)}">`;
+
+      setInterval(updateMapData, 120000);
+      updateMapData();
+    </script>
+  </body>
+</html>
