@@ -1,37 +1,35 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MSC Weather Dashboard + Alert Banner</title>
+    <title>SMC | Dashboard Stable</title>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css"
     />
     <style>
-      body,
-      html {
+      html,
+      body {
         margin: 0;
         padding: 0;
         height: 100%;
-        overflow: hidden;
-        font-family: "Segoe UI", sans-serif;
         background: #121212;
-        color: white;
+        color: #fff;
+        font-family: "Segoe UI", sans-serif;
+        overflow: hidden;
       }
-
       .dashboard {
         display: grid;
         grid-template-areas:
           "header header"
-          "sidebar alert-bar"
+          "sidebar alert"
           "sidebar map"
           "footer footer";
         grid-template-rows: 60px 40px 1fr 30px;
         grid-template-columns: 280px 1fr;
         height: 100vh;
       }
-
       header {
         grid-area: header;
         background: #1a1a1a;
@@ -39,7 +37,6 @@
         align-items: center;
         padding: 0 20px;
         border-bottom: 2px solid #333;
-        z-index: 10;
       }
       footer {
         grid-area: footer;
@@ -60,204 +57,364 @@
       #map {
         grid-area: map;
         background: #000;
+        position: relative;
       }
-
-      /* Alert Banner Styling */
+      #map-loader {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #00d4ff;
+        z-index: 1000;
+        font-family: monospace;
+      }
+      #map-loader.spinner::after {
+        content: "";
+        display: block;
+        width: 30px;
+        height: 30px;
+        border: 3px solid rgba(0, 212, 255, 0.3);
+        border-top-color: #00d4ff;
+        border-radius: 50%;
+        margin: 15px auto;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
       #alert-banner {
-        grid-area: alert-bar;
-        background: #b91c1c; /* Warning Red */
-        color: white;
+        grid-area: alert;
+        background: #b91c1c;
         display: flex;
         align-items: center;
         padding: 0 20px;
-        font-size: 0.9em;
         font-weight: bold;
         overflow: hidden;
-        white-space: nowrap;
-        border-bottom: 1px solid #7f1d1d;
       }
-
       .ticker {
-        display: inline-block;
+        white-space: nowrap;
+        animation: ticker 40s linear infinite;
         padding-left: 100%;
-        animation: ticker 30s linear infinite;
       }
-
       @keyframes ticker {
-        0% {
-          transform: translate(0, 0);
+        from {
+          transform: translateX(0);
         }
-        100% {
-          transform: translate(-100%, 0);
+        to {
+          transform: translateX(-200%);
         }
       }
-
       .section-title {
+        margin-top: 15px;
+        font-size: 0.8em;
         font-weight: bold;
         color: #00d4ff;
-        margin-bottom: 10px;
-        font-size: 0.85em;
         text-transform: uppercase;
         border-bottom: 1px solid #333;
         padding-bottom: 5px;
-        margin-top: 15px;
       }
-      #legend img,
-      #alert-legend img {
-        width: 100%;
+      .legend-container {
+        background: rgba(0, 0, 0, 0.3);
         border-radius: 4px;
-        background: #333;
+        padding: 8px;
+        margin: 8px 0;
+      }
+      .custom-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
         padding: 5px;
-        margin-bottom: 10px;
+        background: rgba(30, 30, 30, 0.7);
+        border-radius: 4px;
+        margin-top: 8px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.85em;
+      }
+      .symbol {
+        width: 32px;
+        height: 24px;
+        display: inline-block;
+        position: relative;
+        border-radius: 2px;
+      }
+      .cold-front {
+        background: linear-gradient(to right, #1e88e5 45%, transparent 45%);
+      }
+      .cold-front::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 2px;
+        transform: translateY(-50%);
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #1e88e5;
+      }
+      .warm-front {
+        background: linear-gradient(to right, #e53935 45%, transparent 45%);
+        border-top: 2px dashed #e53935;
+      }
+      .warm-front::after {
+        content: "◡";
+        position: absolute;
+        top: -5px;
+        left: 3px;
+        font-size: 14px;
+        color: #e53935;
+      }
+      .low-pressure {
+        background: radial-gradient(circle, #ff5252 40%, transparent 45%);
+        border: 1.5px solid #ff1744;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        font-size: 12px;
+      }
+      .high-pressure {
+        background: radial-gradient(circle, #4fc3f7 40%, transparent 45%);
+        border: 1.5px solid #0288d1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        font-size: 12px;
       }
       .status-box {
         margin-top: 20px;
-        padding: 10px;
+        padding: 12px;
         background: #2a2a2a;
+        border-left: 3px solid #00d4ff;
         border-radius: 5px;
         font-size: 0.85em;
+        line-height: 1.5;
+      }
+      .status-box b {
+        color: #00d4ff;
       }
     </style>
   </head>
   <body>
     <div class="dashboard">
       <header>
-        <h2 style="margin: 0; font-size: 1.1em">
-          MSC GEOMET <span style="font-weight: 100">| EMERGENCY DASHBOARD</span>
+        <h2>
+          SMC GEOMET <span style="font-weight: 100">| ANALYSE DE SURFACE</span>
         </h2>
       </header>
-
       <div id="alert-banner">
-        <div class="ticker" id="alert-ticker">
-          LOADING ACTIVE ECCC WEATHER ALERTS... PLEASE WAIT...
+        <div class="ticker">
+          SURVEILLANCE MÉTÉOROLOGIQUE EN DIRECT — RADAR • FRONTS • ALERTES •
+          DONNÉES MET À JOUR TOUTES LES 10 MINUTES
         </div>
       </div>
-
       <aside>
-        <div class="section-title">Active Alert Legend</div>
-        <div id="alert-legend"></div>
-
-        <div class="section-title">Radar Legend</div>
-        <div id="legend"></div>
-
+        <div class="section-title">Analyse de surface</div>
+        <div class="legend-container">
+          <div class="custom-legend">
+            <div class="legend-item">
+              <span class="symbol cold-front"></span>
+              <span>Front froid</span>
+            </div>
+            <div class="legend-item">
+              <span class="symbol warm-front"></span>
+              <span>Front chaud</span>
+            </div>
+            <div class="legend-item">
+              <span class="symbol low-pressure">L</span>
+              <span>Dépression (Bas)</span>
+            </div>
+            <div class="legend-item">
+              <span class="symbol high-pressure">H</span>
+              <span>Anticyclone (Haut)</span>
+            </div>
+          </div>
+        </div>
+        <div class="section-title">Alertes ECCC</div>
+        <div id="alert-legend" class="legend-container"></div>
+        <div class="section-title">Radar précipitations</div>
+        <div id="radar-legend" class="legend-container"></div>
         <div class="status-box">
-          <b>Radar Time:</b>
-          <span id="time-display" style="color: #ff0055">Syncing...</span>
+          <b>Dernier radar :</b><br />
+          <span id="time-display">Chargement...</span><br />
+          <b>Statut :</b>
+          <span id="status-indicator" style="color: #ffcc00"
+            >Initialisation</span
+          >
         </div>
       </aside>
-
-      <div id="map"></div>
-
-      <footer>ECCC Open Data © 2026 | Geostationary Data via MSC GeoMet</footer>
+      <div id="map">
+        <div id="map-loader" class="spinner">
+          Chargement de la carte...
+          <div
+            id="debug-message"
+            style="margin-top: 10px; font-size: 0.8em; color: #666"
+          ></div>
+        </div>
+      </div>
+      <footer>Données SMC © 2026 • Mise à jour toutes les 10 minutes</footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js"></script>
     <script>
-      const GEOMET_URL = "https://geo.weather.gc.ca/geomet";
-      const RADAR_LAYER = "Radar_1km_SfcPrecipType";
-      const ALERTS_LAYER = "ALERTS";
+      const GEOMET = "https://geo.weather.gc.ca/geomet";
 
-      // 1. Base Map
-      const baseLayer = new ol.layer.Tile({
-        source: new ol.source.XYZ({
-          url: "https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      document.getElementById("debug-message").textContent =
+        "Initialisation OpenLayers...";
+      console.log(
+        "Version OpenLayers:",
+        typeof ol !== "undefined" ? "Chargée" : "Non chargée"
+      );
+
+      try {
+        // ---------- BASE MAP ----------
+        const baseLayer = new ol.layer.Tile({
+          source: new ol.source.XYZ({
+            url: "https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+            attributions:
+              '© <a href="https://carto.com/" target="_blank">CARTO</a> | Données météo © <a href="https://weather.gc.ca/" target="_blank">SMC/ECCC</a>',
+            crossOrigin: "anonymous",
+          }),
+        });
+
+        // ---------- WMS SOURCES ----------
+        const radarSource = new ol.source.TileWMS({
+          url: GEOMET,
+          params: {
+            LAYERS: "Radar_1km_SfcPrecipType",
+            FORMAT: "image/png",
+            TRANSPARENT: true,
+          },
           crossOrigin: "anonymous",
-        }),
-      });
+        });
 
-      // 2. Alerts Layer
-      const alertsSource = new ol.source.ImageWMS({
-        url: GEOMET_URL,
-        crossOrigin: "anonymous",
-        params: {
-          LAYERS: ALERTS_LAYER,
-          FORMAT: "image/png",
-          TRANSPARENT: true,
-          VERSION: "1.3.0",
-        },
-        serverType: "geoserver",
-      });
-      const alertsLayer = new ol.layer.Image({
-        source: alertsSource,
-        opacity: 0.5,
-      });
+        const alertsSource = new ol.source.ImageWMS({
+          url: GEOMET,
+          params: {
+            LAYERS: "ALERTS",
+            FORMAT: "image/png",
+            TRANSPARENT: true,
+          },
+          crossOrigin: "anonymous",
+        });
 
-      // 3. Radar Layer
-      const radarSource = new ol.source.ImageWMS({
-        url: GEOMET_URL,
-        crossOrigin: "anonymous",
-        params: {
-          LAYERS: RADAR_LAYER,
-          FORMAT: "image/png",
-          TRANSPARENT: true,
-          VERSION: "1.3.0",
-        },
-        serverType: "geoserver",
-      });
-      const radarLayer = new ol.layer.Image({
-        source: radarSource,
-        opacity: 0.8,
-      });
+        // ✅ CORRECTED LAYER NAME (as of 2026)
+        const frontsSource = new ol.source.ImageWMS({
+          url: GEOMET,
+          params: {
+            LAYERS: "MSC_SURFACE_ANALYSIS", // ← Valid layer
+            FORMAT: "image/png",
+            TRANSPARENT: true,
+            // ⚠️ No TIME parameter — not supported for this layer
+          },
+          crossOrigin: "anonymous",
+        });
 
-      // 4. Map
-      const map = new ol.Map({
-        target: "map",
-        layers: [baseLayer, alertsLayer, radarLayer],
-        view: new ol.View({ center: ol.proj.fromLonLat([-95, 55]), zoom: 4 }),
-      });
+        // ---------- MAP ----------
+        const map = new ol.Map({
+          target: "map",
+          layers: [
+            baseLayer,
+            new ol.layer.Image({ source: alertsSource, opacity: 0.45 }),
+            new ol.layer.Tile({ source: radarSource, opacity: 0.65 }),
+            new ol.layer.Image({ source: frontsSource, opacity: 1.0 }),
+          ],
+          view: new ol.View({
+            center: ol.proj.fromLonLat([-95, 56]), // Centre Canada
+            zoom: 4,
+            maxZoom: 9,
+            minZoom: 3,
+          }),
+          controls: [
+            new ol.control.Zoom(),
+            new ol.control.ScaleLine({ units: "metric" }),
+            new ol.control.Attribution({ collapsible: false }),
+          ],
+        });
 
-      // 5. Update Timer & Banner Text
-      function updateMapData() {
-        const now = new Date();
-        const safeTime = new Date(now.getTime() - 12 * 60 * 1000);
-        const roundedMinutes = Math.floor(safeTime.getMinutes() / 6) * 6;
-        safeTime.setMinutes(roundedMinutes, 0, 0);
-        const timeStr = safeTime.toISOString().split(".")[0] + "Z";
+        // Hide loader on success
+        map.once("rendercomplete", () => {
+          document.getElementById("map-loader").style.display = "none";
+          document.getElementById("status-indicator").textContent =
+            "Opérationnel";
+          document.getElementById("status-indicator").style.color = "#00d4ff";
+          console.log("✅ Carte chargée avec succès");
+        });
 
-        radarSource.updateParams({ TIME: timeStr });
-        alertsSource.updateParams({ t: now.getTime() });
+        // Handle tile errors
+        map.on("tileloaderror", (e) => {
+          console.error("❌ Erreur chargement tuile:", e);
+          document.getElementById("debug-message").textContent =
+            "Erreur réseau – vérifiez votre connexion";
+          document.getElementById("status-indicator").textContent =
+            "Erreur données";
+          document.getElementById("status-indicator").style.color = "#ff5252";
+        });
 
-        document.getElementById("time-display").innerText = timeStr.replace(
-          "T",
-          " "
-        );
-
-        // In a real app, you would fetch JSON alerts here.
-        // For this demo, we'll set a standard ECCC awareness message.
-        document.getElementById("alert-ticker").innerText =
-          "ATTENTION: VIEW ACTIVE POLYGONS ON MAP FOR DETAILED WARNINGS, WATCHES, AND ADVISORIES ISSUED BY ENVIRONMENT CANADA. CLICK MAP FEATURES FOR INFO.";
-      }
-
-      // 6. Interaction: Click to see Alert Info
-      map.on("singleclick", function (evt) {
-        const viewResolution = map.getView().getResolution();
-        const url = alertsSource.getFeatureInfoUrl(
-          evt.coordinate,
-          viewResolution,
-          "EPSG:3857",
-          { INFO_FORMAT: "text/plain" }
-        );
-        if (url) {
-          fetch(url)
-            .then((response) => response.text())
-            .then((data) => {
-              if (data.includes("no features were found")) return;
-              alert("ECCC ALERT INFO:\n" + data);
-            });
+        // ---------- TIME UPDATE (Radar only) ----------
+        function updateRadarTime() {
+          const now = new Date();
+          // Round down to nearest 10-minute mark
+          now.setMinutes(Math.floor(now.getMinutes() / 10) * 10, 0, 0);
+          // Use data from 10 minutes ago (typical latency)
+          const displayTime = new Date(now.getTime() - 10 * 60000);
+          const isoDisplay = displayTime
+            .toISOString()
+            .substring(0, 16)
+            .replace("T", " ");
+          document.getElementById("time-display").innerText =
+            isoDisplay + " UTC";
+          const isoParam = displayTime.toISOString().split(".")[0] + "Z";
+          radarSource.updateParams({ TIME: isoParam });
         }
-      });
 
-      const getLegend = (layer) =>
-        `${GEOMET_URL}?version=1.3.0&service=WMS&request=GetLegendGraphic&sld_version=1.1.0&layer=${layer}&format=image/png`;
-      document.getElementById("legend").innerHTML = `<img src="${getLegend(
-        RADAR_LAYER
-      )}">`;
-      document.getElementById(
-        "alert-legend"
-      ).innerHTML = `<img src="${getLegend(ALERTS_LAYER)}">`;
+        // ---------- LEGENDS ----------
+        function loadLegend(target, layer) {
+          const url = `${GEOMET}?service=WMS&request=GetLegendGraphic&layer=${layer}&format=image/png&transparent=true`;
+          const img = document.createElement("img");
+          img.src = url;
+          img.alt = `Légende ${layer}`;
+          img.onerror = () => {
+            document.getElementById(
+              target
+            ).innerHTML = `<div style='color:#666;padding:5px;font-size:0.8em'>Légende temporairement indisponible</div>`;
+          };
+          document.getElementById(target).innerHTML = "";
+          document.getElementById(target).appendChild(img);
+        }
 
-      setInterval(updateMapData, 120000);
-      updateMapData();
+        // Initialize
+        setTimeout(() => {
+          updateRadarTime();
+          loadLegend("radar-legend", "Radar_1km_SfcPrecipType");
+          loadLegend("alert-legend", "ALERTS");
+          setInterval(updateRadarTime, 600000); // Every 10 minutes
+        }, 1000);
+      } catch (error) {
+        console.error("❌ ERREUR FATALE:", error);
+        document.getElementById(
+          "debug-message"
+        ).textContent = `Erreur: ${error.message}`;
+        document.getElementById("map-loader").classList.remove("spinner");
+        document.getElementById("status-indicator").textContent =
+          "Erreur critique";
+        document.getElementById("status-indicator").style.color = "#ff1744";
+      }
     </script>
   </body>
 </html>
