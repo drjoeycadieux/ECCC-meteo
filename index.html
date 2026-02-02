@@ -2,419 +2,290 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SMC | Dashboard Stable</title>
+    <title>Dashboard Alertes Météo Pro</title>
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
     <style>
-      html,
-      body {
+      :root {
+        --header-height: 60px;
+        --sidebar-width: 350px;
+        --primary-dark: #1a1a1a;
+        --accent-red: #e74c3c;
+      }
+
+      body,
+      html {
         margin: 0;
         padding: 0;
         height: 100%;
-        background: #121212;
-        color: #fff;
-        font-family: "Segoe UI", sans-serif;
+        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         overflow: hidden;
+        background: #eee;
       }
-      .dashboard {
-        display: grid;
-        grid-template-areas:
-          "header header"
-          "sidebar alert"
-          "sidebar map"
-          "footer footer";
-        grid-template-rows: 60px 40px 1fr 30px;
-        grid-template-columns: 280px 1fr;
+
+      .container {
+        display: flex;
+        flex-direction: column;
         height: 100vh;
       }
+
       header {
-        grid-area: header;
-        background: #1a1a1a;
+        height: var(--header-height);
+        background: var(--primary-dark);
+        color: white;
         display: flex;
         align-items: center;
+        justify-content: space-between;
         padding: 0 20px;
-        border-bottom: 2px solid #333;
+        z-index: 1001;
       }
-      footer {
-        grid-area: footer;
-        background: #1a1a1a;
+
+      .main-content {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.75em;
-        color: #666;
-      }
-      aside {
-        grid-area: sidebar;
-        background: #222;
-        padding: 20px;
-        border-right: 1px solid #333;
-        overflow-y: auto;
-      }
-      #map {
-        grid-area: map;
-        background: #000;
-        position: relative;
-      }
-      #map-loader {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: #00d4ff;
-        z-index: 1000;
-        font-family: monospace;
-      }
-      #map-loader.spinner::after {
-        content: "";
-        display: block;
-        width: 30px;
-        height: 30px;
-        border: 3px solid rgba(0, 212, 255, 0.3);
-        border-top-color: #00d4ff;
-        border-radius: 50%;
-        margin: 15px auto;
-        animation: spin 1s linear infinite;
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-      #alert-banner {
-        grid-area: alert;
-        background: #b91c1c;
-        display: flex;
-        align-items: center;
-        padding: 0 20px;
-        font-weight: bold;
+        flex: 1;
         overflow: hidden;
       }
-      .ticker {
-        white-space: nowrap;
-        animation: ticker 40s linear infinite;
-        padding-left: 100%;
-      }
-      @keyframes ticker {
-        from {
-          transform: translateX(0);
-        }
-        to {
-          transform: translateX(-200%);
-        }
-      }
-      .section-title {
-        margin-top: 15px;
-        font-size: 0.8em;
-        font-weight: bold;
-        color: #00d4ff;
-        text-transform: uppercase;
-        border-bottom: 1px solid #333;
-        padding-bottom: 5px;
-      }
-      .legend-container {
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 4px;
-        padding: 8px;
-        margin: 8px 0;
-      }
-      .custom-legend {
+
+      #sidebar {
+        width: var(--sidebar-width);
+        background: white;
+        border-right: 1px solid #ddd;
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 5px;
-        background: rgba(30, 30, 30, 0.7);
+        overflow-y: auto;
+      }
+
+      #map {
+        flex: 1;
+        height: 100%;
+      }
+
+      /* Sidebar Styling */
+      .sidebar-section {
+        padding: 20px;
+        border-bottom: 1px solid #eee;
+      }
+      .sidebar-section h3 {
+        margin: 0 0 15px 0;
+        font-size: 1.2em;
+        border-left: 4px solid var(--accent-red);
+        padding-left: 10px;
+      }
+
+      /* Alert Cards */
+      #alert-list {
+        list-style: none;
+        padding: 0;
+      }
+      .alert-card {
+        padding: 12px 15px;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        border-left: 5px solid transparent;
+      }
+      .alert-card:hover {
+        background: #f8f9fa;
+        transform: translateX(5px);
+      }
+      .alert-card.warning {
+        border-left-color: #e74c3c;
+      }
+      .alert-card.watch {
+        border-left-color: #e67e22;
+      }
+      .alert-card.statement {
+        border-left-color: #95a5a6;
+      }
+
+      .alert-info {
+        flex: 1;
+      }
+      .alert-info strong {
+        display: block;
+        color: #333;
+        margin-bottom: 2px;
+      }
+      .alert-info small {
+        color: #888;
+        display: block;
+      }
+
+      /* Popup Buttons */
+      .btn-more {
+        background: var(--accent-red);
+        color: white;
+        border: none;
+        padding: 5px 10px;
         border-radius: 4px;
-        margin-top: 8px;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 0.85em;
-      }
-      .symbol {
-        width: 32px;
-        height: 24px;
+        cursor: pointer;
+        margin-top: 10px;
+        font-weight: bold;
         display: inline-block;
-        position: relative;
-        border-radius: 2px;
-      }
-      .cold-front {
-        background: linear-gradient(to right, #1e88e5 45%, transparent 45%);
-      }
-      .cold-front::after {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 2px;
-        transform: translateY(-50%);
-        width: 0;
-        height: 0;
-        border-left: 6px solid transparent;
-        border-right: 6px solid transparent;
-        border-top: 8px solid #1e88e5;
-      }
-      .warm-front {
-        background: linear-gradient(to right, #e53935 45%, transparent 45%);
-        border-top: 2px dashed #e53935;
-      }
-      .warm-front::after {
-        content: "◡";
-        position: absolute;
-        top: -5px;
-        left: 3px;
-        font-size: 14px;
-        color: #e53935;
-      }
-      .low-pressure {
-        background: radial-gradient(circle, #ff5252 40%, transparent 45%);
-        border: 1.5px solid #ff1744;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        color: white;
+        text-decoration: none;
         font-size: 12px;
       }
-      .high-pressure {
-        background: radial-gradient(circle, #4fc3f7 40%, transparent 45%);
-        border: 1.5px solid #0288d1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+
+      #loader {
+        position: fixed;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2000;
+        background: white;
+        padding: 12px 25px;
+        border-radius: 30px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         font-weight: bold;
-        color: white;
-        font-size: 12px;
+        color: var(--accent-red);
       }
-      .status-box {
-        margin-top: 20px;
-        padding: 12px;
-        background: #2a2a2a;
-        border-left: 3px solid #00d4ff;
-        border-radius: 5px;
-        font-size: 0.85em;
-        line-height: 1.5;
-      }
-      .status-box b {
-        color: #00d4ff;
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        #sidebar {
+          width: 100%;
+          display: none;
+        } /* Hide sidebar on mobile for now */
       }
     </style>
   </head>
   <body>
-    <div class="dashboard">
+    <div class="container">
       <header>
-        <h2>
-          SMC GEOMET <span style="font-weight: 100">| ANALYSE DE SURFACE</span>
-        </h2>
-      </header>
-      <div id="alert-banner">
-        <div class="ticker">
-          SURVEILLANCE MÉTÉOROLOGIQUE EN DIRECT — RADAR • FRONTS • ALERTES •
-          DONNÉES MET À JOUR TOUTES LES 10 MINUTES
+        <h2 style="margin: 0">🇨🇦 Vigilance Météo Canada</h2>
+        <div id="status-tag" style="font-size: 0.8em; opacity: 0.8">
+          Mise à jour en direct
         </div>
-      </div>
-      <aside>
-        <div class="section-title">Analyse de surface</div>
-        <div class="legend-container">
-          <div class="custom-legend">
-            <div class="legend-item">
-              <span class="symbol cold-front"></span>
-              <span>Front froid</span>
+      </header>
+
+      <div class="main-content">
+        <div id="sidebar">
+          <div class="sidebar-section">
+            <h3>Légende</h3>
+            <div style="font-size: 0.9em">
+              <span style="color: #e74c3c">●</span> Avertissement (Danger)<br />
+              <span style="color: #e67e22">●</span> Veille (À surveiller)<br />
+              <span style="color: #95a5a6">●</span> Bulletin (Info)
             </div>
-            <div class="legend-item">
-              <span class="symbol warm-front"></span>
-              <span>Front chaud</span>
-            </div>
-            <div class="legend-item">
-              <span class="symbol low-pressure">L</span>
-              <span>Dépression (Bas)</span>
-            </div>
-            <div class="legend-item">
-              <span class="symbol high-pressure">H</span>
-              <span>Anticyclone (Haut)</span>
+          </div>
+
+          <div class="sidebar-section" style="flex: 1">
+            <h3>Alertes en cours</h3>
+            <div id="alert-list">
+              <p style="color: #999; text-align: center">Synchronisation...</p>
             </div>
           </div>
         </div>
-        <div class="section-title">Alertes ECCC</div>
-        <div id="alert-legend" class="legend-container"></div>
-        <div class="section-title">Radar précipitations</div>
-        <div id="radar-legend" class="legend-container"></div>
-        <div class="status-box">
-          <b>Dernier radar :</b><br />
-          <span id="time-display">Chargement...</span><br />
-          <b>Statut :</b>
-          <span id="status-indicator" style="color: #ffcc00"
-            >Initialisation</span
-          >
-        </div>
-      </aside>
-      <div id="map">
-        <div id="map-loader" class="spinner">
-          Chargement de la carte...
-          <div
-            id="debug-message"
-            style="margin-top: 10px; font-size: 0.8em; color: #666"
-          ></div>
-        </div>
+
+        <div id="map"></div>
       </div>
-      <footer>Données SMC © 2026 • Mise à jour toutes les 10 minutes</footer>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js"></script>
+    <div id="loader">Récupération des données gouvernementales...</div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-      const GEOMET = "https://geo.weather.gc.ca/geomet";
+      const map = L.map("map").setView([58, -95], 4);
 
-      document.getElementById("debug-message").textContent =
-        "Initialisation OpenLayers...";
-      console.log(
-        "Version OpenLayers:",
-        typeof ol !== "undefined" ? "Chargée" : "Non chargée"
-      );
-
-      try {
-        // ---------- BASE MAP ----------
-        const baseLayer = new ol.layer.Tile({
-          source: new ol.source.XYZ({
-            url: "https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-            attributions:
-              '© <a href="https://carto.com/" target="_blank">CARTO</a> | Données météo © <a href="https://weather.gc.ca/" target="_blank">SMC/ECCC</a>',
-            crossOrigin: "anonymous",
-          }),
-        });
-
-        // ---------- WMS SOURCES ----------
-        const radarSource = new ol.source.TileWMS({
-          url: GEOMET,
-          params: {
-            LAYERS: "Radar_1km_SfcPrecipType",
-            FORMAT: "image/png",
-            TRANSPARENT: true,
-          },
-          crossOrigin: "anonymous",
-        });
-
-        const alertsSource = new ol.source.ImageWMS({
-          url: GEOMET,
-          params: {
-            LAYERS: "ALERTS",
-            FORMAT: "image/png",
-            TRANSPARENT: true,
-          },
-          crossOrigin: "anonymous",
-        });
-
-        // ✅ CORRECTED LAYER NAME (as of 2026)
-        const frontsSource = new ol.source.ImageWMS({
-          url: GEOMET,
-          params: {
-            LAYERS: "MSC_SURFACE_ANALYSIS", // ← Valid layer
-            FORMAT: "image/png",
-            TRANSPARENT: true,
-            // ⚠️ No TIME parameter — not supported for this layer
-          },
-          crossOrigin: "anonymous",
-        });
-
-        // ---------- MAP ----------
-        const map = new ol.Map({
-          target: "map",
-          layers: [
-            baseLayer,
-            new ol.layer.Image({ source: alertsSource, opacity: 0.45 }),
-            new ol.layer.Tile({ source: radarSource, opacity: 0.65 }),
-            new ol.layer.Image({ source: frontsSource, opacity: 1.0 }),
-          ],
-          view: new ol.View({
-            center: ol.proj.fromLonLat([-95, 56]), // Centre Canada
-            zoom: 4,
-            maxZoom: 9,
-            minZoom: 3,
-          }),
-          controls: [
-            new ol.control.Zoom(),
-            new ol.control.ScaleLine({ units: "metric" }),
-            new ol.control.Attribution({ collapsible: false }),
-          ],
-        });
-
-        // Hide loader on success
-        map.once("rendercomplete", () => {
-          document.getElementById("map-loader").style.display = "none";
-          document.getElementById("status-indicator").textContent =
-            "Opérationnel";
-          document.getElementById("status-indicator").style.color = "#00d4ff";
-          console.log("✅ Carte chargée avec succès");
-        });
-
-        // Handle tile errors
-        map.on("tileloaderror", (e) => {
-          console.error("❌ Erreur chargement tuile:", e);
-          document.getElementById("debug-message").textContent =
-            "Erreur réseau – vérifiez votre connexion";
-          document.getElementById("status-indicator").textContent =
-            "Erreur données";
-          document.getElementById("status-indicator").style.color = "#ff5252";
-        });
-
-        // ---------- TIME UPDATE (Radar only) ----------
-        function updateRadarTime() {
-          const now = new Date();
-          // Round down to nearest 10-minute mark
-          now.setMinutes(Math.floor(now.getMinutes() / 10) * 10, 0, 0);
-          // Use data from 10 minutes ago (typical latency)
-          const displayTime = new Date(now.getTime() - 10 * 60000);
-          const isoDisplay = displayTime
-            .toISOString()
-            .substring(0, 16)
-            .replace("T", " ");
-          document.getElementById("time-display").innerText =
-            isoDisplay + " UTC";
-          const isoParam = displayTime.toISOString().split(".")[0] + "Z";
-          radarSource.updateParams({ TIME: isoParam });
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        {
+          attribution: "© OpenStreetMap | ECCC",
         }
+      ).addTo(map);
 
-        // ---------- LEGENDS ----------
-        function loadLegend(target, layer) {
-          const url = `${GEOMET}?service=WMS&request=GetLegendGraphic&layer=${layer}&format=image/png&transparent=true`;
-          const img = document.createElement("img");
-          img.src = url;
-          img.alt = `Légende ${layer}`;
-          img.onerror = () => {
-            document.getElementById(
-              target
-            ).innerHTML = `<div style='color:#666;padding:5px;font-size:0.8em'>Légende temporairement indisponible</div>`;
-          };
-          document.getElementById(target).innerHTML = "";
-          document.getElementById(target).appendChild(img);
-        }
+      let globalAlerts = {};
 
-        // Initialize
-        setTimeout(() => {
-          updateRadarTime();
-          loadLegend("radar-legend", "Radar_1km_SfcPrecipType");
-          loadLegend("alert-legend", "ALERTS");
-          setInterval(updateRadarTime, 600000); // Every 10 minutes
-        }, 1000);
-      } catch (error) {
-        console.error("❌ ERREUR FATALE:", error);
-        document.getElementById(
-          "debug-message"
-        ).textContent = `Erreur: ${error.message}`;
-        document.getElementById("map-loader").classList.remove("spinner");
-        document.getElementById("status-indicator").textContent =
-          "Erreur critique";
-        document.getElementById("status-indicator").style.color = "#ff1744";
+      function getColor(colour) {
+        const colors = {
+          red: "#e74c3c",
+          orange: "#e67e22",
+          yellow: "#f1c40f",
+          grey: "#95a5a6",
+        };
+        return colors[colour] || "#3498db";
       }
+
+      async function loadData() {
+        const url =
+          "https://meteo.gc.ca/data/dms/alert_geojson_2_0/alerts.public.fr.geojson";
+        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(
+          url
+        )}`;
+
+        try {
+          const res = await fetch(proxy);
+          const data = await res.json();
+          globalAlerts = data.alerts;
+          document.getElementById("loader").style.display = "none";
+
+          const listContainer = document.getElementById("alert-list");
+          listContainer.innerHTML = "";
+
+          L.geoJSON(data, {
+            style: (f) => {
+              const alert = globalAlerts[f.properties.alerts[0].alertRef];
+              return {
+                fillColor: getColor(alert?.colour),
+                weight: 1,
+                opacity: 1,
+                color: "white",
+                fillOpacity: 0.5,
+              };
+            },
+            onEachFeature: (feature, layer) => {
+              const alert = globalAlerts[feature.properties.alerts[0].alertRef];
+
+              if (alert) {
+                // Map Popup
+                const popupHTML = `
+                                <div style="width:250px;">
+                                    <h3 style="margin:0; color:${getColor(
+                                      alert.colour
+                                    )}">${alert.alertBannerText}</h3>
+                                    <p><b>Zone:</b> ${
+                                      feature.properties.name
+                                    }</p>
+                                    <div style="font-size:11px; max-height:120px; overflow-y:auto; background:#f9f9f9; padding:5px; border:1px solid #eee;">
+                                        ${alert.text.replace(/\n/g, "<br>")}
+                                    </div>
+                                    <a href="https://meteo.gc.ca/warnings/index_f.html" target="_blank" class="btn-more">Lire l'intégralité</a>
+                                </div>`;
+                layer.bindPopup(popupHTML);
+
+                // Sidebar Card
+                const card = document.createElement("div");
+                card.className = `alert-card ${alert.type}`;
+                card.style.borderLeftColor = getColor(alert.colour);
+                card.innerHTML = `
+                                <div class="alert-info">
+                                    <strong>${alert.alertNameShort}</strong>
+                                    <small>${feature.properties.name}</small>
+                                </div>
+                            `;
+                card.onclick = () => {
+                  map.fitBounds(layer.getBounds());
+                  layer.openPopup();
+                };
+                listContainer.appendChild(card);
+              }
+            },
+          }).addTo(map);
+
+          if (data.features.length === 0) {
+            listContainer.innerHTML =
+              "<p style='padding:15px;'>Ciel dégagé. Aucune alerte.</p>";
+          }
+        } catch (e) {
+          document.getElementById("loader").innerText = "Erreur de connexion.";
+        }
+      }
+
+      loadData();
     </script>
   </body>
 </html>
