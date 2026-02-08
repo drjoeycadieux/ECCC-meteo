@@ -2,52 +2,44 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <title>Dashboard Alertes Météo Pro</title>
+    <title>Vigilance Météo Canada - Flux Complet</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
     <style>
       :root {
-        --header-height: 60px;
         --sidebar-width: 350px;
-        --primary-dark: #1a1a1a;
-        --accent-red: #e74c3c;
+        --primary: #1a1a1a;
       }
-
       body,
       html {
         margin: 0;
         padding: 0;
         height: 100%;
-        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        overflow: hidden;
+        font-family: "Segoe UI", sans-serif;
         background: #eee;
+        overflow: hidden;
       }
-
       .container {
         display: flex;
         flex-direction: column;
         height: 100vh;
       }
-
       header {
-        height: var(--header-height);
-        background: var(--primary-dark);
+        height: 60px;
+        background: var(--primary);
         color: white;
         display: flex;
         align-items: center;
-        justify-content: space-between;
         padding: 0 20px;
         z-index: 1001;
       }
-
       .main-content {
         display: flex;
         flex: 1;
         overflow: hidden;
       }
-
       #sidebar {
         width: var(--sidebar-width);
         background: white;
@@ -56,149 +48,87 @@
         flex-direction: column;
         overflow-y: auto;
       }
-
       #map {
         flex: 1;
         height: 100%;
+        width: 100%;
       }
-
-      /* Sidebar Styling */
       .sidebar-section {
-        padding: 20px;
+        padding: 15px;
         border-bottom: 1px solid #eee;
       }
-      .sidebar-section h3 {
-        margin: 0 0 15px 0;
-        font-size: 1.2em;
-        border-left: 4px solid var(--accent-red);
-        padding-left: 10px;
-      }
-
-      /* Alert Cards */
-      #alert-list {
-        list-style: none;
-        padding: 0;
-      }
       .alert-card {
-        padding: 12px 15px;
+        padding: 12px;
         border-bottom: 1px solid #f0f0f0;
         cursor: pointer;
-        transition: all 0.2s;
         display: flex;
-        align-items: center;
-        border-left: 5px solid transparent;
+        border-left: 6px solid transparent;
       }
       .alert-card:hover {
         background: #f8f9fa;
-        transform: translateX(5px);
       }
-      .alert-card.warning {
-        border-left-color: #e74c3c;
-      }
-      .alert-card.watch {
-        border-left-color: #e67e22;
-      }
-      .alert-card.statement {
-        border-left-color: #95a5a6;
-      }
-
-      .alert-info {
-        flex: 1;
-      }
-      .alert-info strong {
-        display: block;
-        color: #333;
-        margin-bottom: 2px;
-      }
-      .alert-info small {
-        color: #888;
-        display: block;
-      }
-
-      /* Popup Buttons */
-      .btn-more {
-        background: var(--accent-red);
-        color: white;
-        border: none;
-        padding: 5px 10px;
-        border-radius: 4px;
-        cursor: pointer;
-        margin-top: 10px;
-        font-weight: bold;
-        display: inline-block;
-        text-decoration: none;
-        font-size: 12px;
-      }
-
       #loader {
         position: fixed;
-        top: 80px;
+        top: 75px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2000;
         background: white;
-        padding: 12px 25px;
-        border-radius: 30px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        padding: 10px 20px;
+        border-radius: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
         font-weight: bold;
-        color: var(--accent-red);
       }
-
-      /* Responsive */
-      @media (max-width: 768px) {
-        #sidebar {
-          width: 100%;
-          display: none;
-        } /* Hide sidebar on mobile for now */
+      .dot {
+        height: 10px;
+        width: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <header>
-        <h2 style="margin: 0">🇨🇦 Vigilance Météo Canada</h2>
-        <div id="status-tag" style="font-size: 0.8em; opacity: 0.8">
-          Mise à jour en direct
-        </div>
-      </header>
-
+      <header><h2>🇨🇦 Vigilance Météo (Flux SMC Officiel)</h2></header>
       <div class="main-content">
         <div id="sidebar">
           <div class="sidebar-section">
             <h3>Légende</h3>
-            <div style="font-size: 0.9em">
-              <span style="color: #e74c3c">●</span> Avertissement (Danger)<br />
-              <span style="color: #e67e22">●</span> Veille (À surveiller)<br />
-              <span style="color: #95a5a6">●</span> Bulletin (Info)
+            <div>
+              <span class="dot" style="background: #e74c3c"></span>
+              Avertissement
+            </div>
+            <div>
+              <span class="dot" style="background: #e67e22"></span> Veille
+            </div>
+            <div>
+              <span class="dot" style="background: #f1c40f"></span> Avis
+            </div>
+            <div>
+              <span class="dot" style="background: #95a5a6"></span> Bulletin
+              spécial
             </div>
           </div>
-
           <div class="sidebar-section" style="flex: 1">
-            <h3>Alertes en cours</h3>
-            <div id="alert-list">
-              <p style="color: #999; text-align: center">Synchronisation...</p>
-            </div>
+            <h3 id="alert-status">Chargement...</h3>
+            <div id="alert-list"></div>
           </div>
         </div>
-
         <div id="map"></div>
       </div>
     </div>
-
-    <div id="loader">Récupération des données gouvernementales...</div>
+    <div id="loader">Récupération des données SMC...</div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
       const map = L.map("map").setView([58, -95], 4);
-
       L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
         {
-          attribution: "© OpenStreetMap | ECCC",
+          attribution: "© OpenStreetMap | Données SMC/ECCC",
         }
       ).addTo(map);
-
-      let globalAlerts = {};
 
       function getColor(colour) {
         const colors = {
@@ -211,62 +141,53 @@
       }
 
       async function loadData() {
-        const url =
-          "https://meteo.gc.ca/data/dms/alert_geojson_2_0/alerts.public.fr.geojson";
-        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(
-          url
+        // URL directe documentée dans le Readme du SMC
+        const targetUrl =
+          "https://dd.weather.gc.ca/alerts/active_alerts.fr.geojson";
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(
+          targetUrl
         )}`;
 
         try {
-          const res = await fetch(proxy);
-          const data = await res.json();
-          globalAlerts = data.alerts;
-          document.getElementById("loader").style.display = "none";
+          const response = await fetch(proxyUrl);
+          const rawText = await response.text();
 
+          // Test crucial : Si c'est du HTML, on ne parse pas
+          if (rawText.trim().startsWith("<")) {
+            throw new Error(
+              "Le serveur a renvoyé du HTML. Le proxy est peut-être saturé."
+            );
+          }
+
+          const data = JSON.parse(rawText);
+          const globalAlerts = data.alerts || {};
+
+          document.getElementById("loader").style.display = "none";
           const listContainer = document.getElementById("alert-list");
           listContainer.innerHTML = "";
 
           L.geoJSON(data, {
             style: (f) => {
-              const alert = globalAlerts[f.properties.alerts[0].alertRef];
+              const alert = globalAlerts[f.properties.alerts?.[0]?.alertRef];
               return {
                 fillColor: getColor(alert?.colour),
                 weight: 1,
-                opacity: 1,
                 color: "white",
                 fillOpacity: 0.5,
               };
             },
             onEachFeature: (feature, layer) => {
-              const alert = globalAlerts[feature.properties.alerts[0].alertRef];
-
+              const alert =
+                globalAlerts[feature.properties.alerts?.[0]?.alertRef];
               if (alert) {
-                // Map Popup
-                const popupHTML = `
-                                <div style="width:250px;">
-                                    <h3 style="margin:0; color:${getColor(
-                                      alert.colour
-                                    )}">${alert.alertBannerText}</h3>
-                                    <p><b>Zone:</b> ${
-                                      feature.properties.name
-                                    }</p>
-                                    <div style="font-size:11px; max-height:120px; overflow-y:auto; background:#f9f9f9; padding:5px; border:1px solid #eee;">
-                                        ${alert.text.replace(/\n/g, "<br>")}
-                                    </div>
-                                    <a href="https://meteo.gc.ca/warnings/index_f.html" target="_blank" class="btn-more">Lire l'intégralité</a>
-                                </div>`;
-                layer.bindPopup(popupHTML);
+                layer.bindPopup(
+                  `<b>${alert.alertBannerText}</b><br>${feature.properties.name}`
+                );
 
-                // Sidebar Card
                 const card = document.createElement("div");
-                card.className = `alert-card ${alert.type}`;
+                card.className = "alert-card";
                 card.style.borderLeftColor = getColor(alert.colour);
-                card.innerHTML = `
-                                <div class="alert-info">
-                                    <strong>${alert.alertNameShort}</strong>
-                                    <small>${feature.properties.name}</small>
-                                </div>
-                            `;
+                card.innerHTML = `<div><strong>${alert.alertNameShort}</strong><br><small>${feature.properties.name}</small></div>`;
                 card.onclick = () => {
                   map.fitBounds(layer.getBounds());
                   layer.openPopup();
@@ -276,12 +197,16 @@
             },
           }).addTo(map);
 
-          if (data.features.length === 0) {
-            listContainer.innerHTML =
-              "<p style='padding:15px;'>Ciel dégagé. Aucune alerte.</p>";
-          }
-        } catch (e) {
-          document.getElementById("loader").innerText = "Erreur de connexion.";
+          document.getElementById(
+            "alert-status"
+          ).innerText = `${data.features.length} bulletins actifs`;
+        } catch (error) {
+          console.error("Erreur SMC:", error);
+          document.getElementById(
+            "loader"
+          ).innerHTML = `<span style="color:red">Erreur : Flux indisponible</span>`;
+          document.getElementById("alert-status").innerText =
+            "Données indisponibles";
         }
       }
 
