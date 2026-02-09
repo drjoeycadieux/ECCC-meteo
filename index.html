@@ -122,6 +122,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+      // 1. Initialize the map first!
       const map = L.map("map").setView([58, -95], 4);
       L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
@@ -140,26 +141,15 @@
         return colors[colour] || "#3498db";
       }
 
+      // 2. The function to call your backend
       async function loadData() {
-        // URL directe documentée dans le Readme du SMC
-        const targetUrl =
-          "https://dd.weather.gc.ca/alerts/active_alerts.fr.geojson";
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(
-          targetUrl
-        )}`;
+        const targetUrl = "https://nqy5nf-5000.csb.app/api/alerts"; // This points to your Node server
 
         try {
-          const response = await fetch(proxyUrl);
-          const rawText = await response.text();
+          const response = await fetch(targetUrl);
+          if (!response.ok) throw new Error("Erreur serveur");
 
-          // Test crucial : Si c'est du HTML, on ne parse pas
-          if (rawText.trim().startsWith("<")) {
-            throw new Error(
-              "Le serveur a renvoyé du HTML. Le proxy est peut-être saturé."
-            );
-          }
-
-          const data = JSON.parse(rawText);
+          const data = await response.json();
           const globalAlerts = data.alerts || {};
 
           document.getElementById("loader").style.display = "none";
@@ -201,15 +191,14 @@
             "alert-status"
           ).innerText = `${data.features.length} bulletins actifs`;
         } catch (error) {
-          console.error("Erreur SMC:", error);
+          console.error("Erreur back-end:", error);
           document.getElementById(
             "loader"
-          ).innerHTML = `<span style="color:red">Erreur : Flux indisponible</span>`;
-          document.getElementById("alert-status").innerText =
-            "Données indisponibles";
+          ).innerHTML = `<span style="color:red">Erreur : Serveur indisponible</span>`;
         }
       }
 
+      // 3. Run the function
       loadData();
     </script>
   </body>
