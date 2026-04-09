@@ -34,6 +34,11 @@
         align-items: center;
         padding: 0 20px;
         z-index: 1001;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      }
+      header h2 {
+        margin: 0;
+        font-size: 1.2rem;
       }
       .main-content {
         display: flex;
@@ -46,74 +51,103 @@
         border-right: 1px solid #ddd;
         display: flex;
         flex-direction: column;
-        overflow-y: auto;
+        z-index: 1000;
       }
       #map {
         flex: 1;
         height: 100%;
         width: 100%;
+        background: #aad3df;
       }
       .sidebar-section {
         padding: 15px;
         border-bottom: 1px solid #eee;
+      }
+      .alert-list-container {
+        flex: 1;
+        overflow-y: auto;
       }
       .alert-card {
         padding: 12px;
         border-bottom: 1px solid #f0f0f0;
         cursor: pointer;
         display: flex;
+        align-items: center;
         border-left: 6px solid transparent;
+        transition: background 0.2s;
       }
       .alert-card:hover {
         background: #f8f9fa;
       }
+      .alert-card strong {
+        display: block;
+        margin-bottom: 4px;
+        color: #333;
+      }
+      .alert-card small {
+        color: #666;
+        line-height: 1.4;
+      }
       #loader {
         position: fixed;
-        top: 75px;
+        top: 80px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2000;
         background: white;
-        padding: 10px 20px;
-        border-radius: 20px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        padding: 12px 24px;
+        border-radius: 30px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
         font-weight: bold;
+        display: none;
       }
       .dot {
-        height: 10px;
-        width: 10px;
+        height: 12px;
+        width: 12px;
         border-radius: 50%;
         display: inline-block;
         margin-right: 8px;
+        vertical-align: middle;
+      }
+      .legend-item {
+        margin-bottom: 5px;
+        font-size: 0.9rem;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <header><h2>🇨🇦 Vigilance Météo (Flux SMC Officiel)</h2></header>
+      <header>
+        <h2>🇨🇦 Vigilance Météo (SMC/ECCC)</h2>
+      </header>
       <div class="main-content">
         <div id="sidebar">
           <div class="sidebar-section">
             <h3>Légende</h3>
-            <div>
+            <div class="legend-item">
               <span class="dot" style="background: #e74c3c"></span>
               Avertissement
             </div>
-            <div>
+            <div class="legend-item">
               <span class="dot" style="background: #e67e22"></span> Veille
             </div>
-            <div>
+            <div class="legend-item">
               <span class="dot" style="background: #f1c40f"></span> Avis
             </div>
-            <div>
+            <div class="legend-item">
               <span class="dot" style="background: #95a5a6"></span> Bulletin
               spécial
             </div>
           </div>
-          <div class="sidebar-section" style="flex: 1">
-            <h3 id="alert-status">Chargement...</h3>
-            <div id="alert-list"></div>
+          <div
+            class="sidebar-section"
+            style="border-bottom: none; padding-bottom: 5px"
+          >
+            <h3 id="alert-status" style="margin: 0 0 10px 0; font-size: 1rem">
+              Chargement...
+            </h3>
           </div>
+          <div id="alert-list" class="alert-list-container"></div>
         </div>
         <div id="map"></div>
       </div>
@@ -122,83 +156,153 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-      // 1. Initialize the map first!
+      // 1. Initialize Map
       const map = L.map("map").setView([58, -95], 4);
+
       L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
         {
-          attribution: "© OpenStreetMap | Données SMC/ECCC",
+          attribution: "© OpenStreetMap © CARTO",
+          subdomains: "abcd",
+          maxZoom: 19,
         }
       ).addTo(map);
 
-      function getColor(colour) {
-        const colors = {
-          red: "#e74c3c",
-          orange: "#e67e22",
-          yellow: "#f1c40f",
-          grey: "#95a5a6",
-        };
-        return colors[colour] || "#3498db";
+      // Helper: Get Color based on priority/type
+      function getColor(properties) {
+        const type = properties.type || "";
+        const priority = properties.priority || "";
+
+        if (type.includes("Warning") || priority === "High") return "#e74c3c"; // Red
+        if (type.includes("Watch")) return "#e67e22"; // Orange
+        if (type.includes("Statement")) return "#f1c40f"; // Yellow
+
+        return "#95a5a6"; // Grey/Default
       }
 
-      // 2. The function to call your backend
       async function loadData() {
-        const targetUrl = "https://nqy5nf-5000.csb.app/api/alerts"; // This points to your Node server
+        const loader = document.getElementById("loader");
+        const listContainer = document.getElementById("alert-list");
+        const statusLabel = document.getElementById("alert-status");
+
+        loader.style.display = "block";
+        loader.innerText = "Récupération des données SMC...";
+
+        // Official ECCC GeoJSON Feed
+        const originalUrl =
+          "https://dd.weather.gc.ca/alerts/cap/geodata/EC_alerts_map_polygons_en.geojson";
+
+        // We use a CORS proxy to bypass browser security restrictions
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
+          originalUrl
+        )}`;
 
         try {
-          const response = await fetch(targetUrl);
-          if (!response.ok) throw new Error("Erreur serveur");
+          const response = await fetch(proxyUrl);
+          if (!response.ok)
+            throw new Error("Erreur réseau lors de la connexion au proxy");
 
-          const data = await response.json();
-          const globalAlerts = data.alerts || {};
+          const dataWrapper = await response.json();
 
-          document.getElementById("loader").style.display = "none";
-          const listContainer = document.getElementById("alert-list");
+          // allorigins returns the actual content in a 'contents' string
+          if (!dataWrapper.contents)
+            throw new Error("Le proxy n'a retourné aucune donnée");
+
+          const data = JSON.parse(dataWrapper.contents);
+
+          loader.style.display = "none";
           listContainer.innerHTML = "";
 
+          let activeCount = 0;
+
+          // Clear existing layers
+          map.eachLayer((layer) => {
+            if (!!layer.toGeoJSON && !layer._url) {
+              map.removeLayer(layer);
+            }
+          });
+
+          if (!data.features || data.features.length === 0) {
+            statusLabel.innerText = "Aucune alerte active";
+            return;
+          }
+
           L.geoJSON(data, {
-            style: (f) => {
-              const alert = globalAlerts[f.properties.alerts?.[0]?.alertRef];
+            style: (feature) => {
               return {
-                fillColor: getColor(alert?.colour),
+                fillColor: getColor(feature.properties),
                 weight: 1,
-                color: "white",
-                fillOpacity: 0.5,
+                color: "#fff",
+                fillOpacity: 0.6,
               };
             },
             onEachFeature: (feature, layer) => {
-              const alert =
-                globalAlerts[feature.properties.alerts?.[0]?.alertRef];
-              if (alert) {
-                layer.bindPopup(
-                  `<b>${alert.alertBannerText}</b><br>${feature.properties.name}`
-                );
+              const props = feature.properties;
 
-                const card = document.createElement("div");
-                card.className = "alert-card";
-                card.style.borderLeftColor = getColor(alert.colour);
-                card.innerHTML = `<div><strong>${alert.alertNameShort}</strong><br><small>${feature.properties.name}</small></div>`;
-                card.onclick = () => {
-                  map.fitBounds(layer.getBounds());
-                  layer.openPopup();
-                };
-                listContainer.appendChild(card);
-              }
+              // Skip if no geometry
+              if (!feature.geometry) return;
+
+              activeCount++;
+
+              // Popup Content
+              const title = props.event || "Alerte Météo";
+              const desc = props.description || "Pas de description.";
+              const instruction = props.instruction
+                ? `<br><br><b>Consignes:</b> ${props.instruction}`
+                : "";
+
+              layer.bindPopup(`
+                <div style="min-width: 200px">
+                  <strong style="color:${getColor(
+                    props
+                  )}; font-size:1.1em">${title}</strong><br>
+                  <span style="font-size:0.9em; color:#555">${
+                    props.areaDesc || ""
+                  }</span>
+                  <hr style="border:0; border-top:1px solid #eee; margin: 8px 0;">
+                  <div style="font-size:0.85em; max-height: 150px; overflow-y:auto;">${desc}</div>
+                  ${instruction}
+                </div>
+              `);
+
+              // Sidebar Card
+              const card = document.createElement("div");
+              card.className = "alert-card";
+              card.style.borderLeftColor = getColor(props);
+
+              const shortDesc = props.description
+                ? props.description.substring(0, 60) + "..."
+                : "";
+
+              card.innerHTML = `
+                <div>
+                  <strong>${title}</strong>
+                  <small>${props.areaDesc || "Canada"}<br>${shortDesc}</small>
+                </div>
+              `;
+
+              card.onclick = () => {
+                if (layer.getBounds && layer.getBounds().isValid()) {
+                  map.flyToBounds(layer.getBounds(), { padding: [50, 50] });
+                } else if (layer.getLatLng) {
+                  map.flyTo(layer.getLatLng(), 8);
+                }
+                layer.openPopup();
+              };
+
+              listContainer.appendChild(card);
             },
           }).addTo(map);
 
-          document.getElementById(
-            "alert-status"
-          ).innerText = `${data.features.length} bulletins actifs`;
+          statusLabel.innerText = `${activeCount} bulletins actifs`;
         } catch (error) {
-          console.error("Erreur back-end:", error);
-          document.getElementById(
-            "loader"
-          ).innerHTML = `<span style="color:red">Erreur : Serveur indisponible</span>`;
+          console.error("Erreur détaillée:", error);
+          loader.innerHTML = `<span style="color:red">Erreur : ${error.message}</span>`;
+          statusLabel.innerText = "Échec du chargement";
         }
       }
 
-      // 3. Run the function
+      // Run
       loadData();
     </script>
   </body>
