@@ -2,116 +2,431 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vigilance Météo Canada - Flux Complet</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
-        --sidebar-width: 350px;
-        --primary: #1a1a1a;
+        --sidebar-width: 380px;
+        --primary: #0f172a;
+        --primary-light: #1e293b;
+        --accent: #3b82f6;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --bg: #f1f5f9;
+        --card-bg: #ffffff;
+        --text: #334155;
+        --text-light: #64748b;
+        --border: #e2e8f0;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -4px rgba(0, 0, 0, 0.1);
       }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body,
       html {
         margin: 0;
         padding: 0;
         height: 100%;
-        font-family: "Segoe UI", sans-serif;
-        background: #eee;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: var(--bg);
         overflow: hidden;
       }
+
       .container {
         display: flex;
         flex-direction: column;
         height: 100vh;
       }
+
       header {
-        height: 60px;
-        background: var(--primary);
+        height: 64px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
         color: white;
         display: flex;
         align-items: center;
-        padding: 0 20px;
+        justify-content: space-between;
+        padding: 0 24px;
         z-index: 1001;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--shadow-lg);
       }
+
       header h2 {
         margin: 0;
-        font-size: 1.2rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
+
+      .header-actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .refresh-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .refresh-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+      }
+
+      .refresh-btn:active {
+        transform: translateY(0);
+      }
+
+      .refresh-btn.refreshing {
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
       .main-content {
         display: flex;
         flex: 1;
         overflow: hidden;
       }
+
       #sidebar {
         width: var(--sidebar-width);
-        background: white;
-        border-right: 1px solid #ddd;
+        background: var(--card-bg);
+        border-right: 1px solid var(--border);
         display: flex;
         flex-direction: column;
         z-index: 1000;
+        box-shadow: var(--shadow);
       }
+
       #map {
         flex: 1;
         height: 100%;
         width: 100%;
         background: #aad3df;
       }
+
       .sidebar-section {
-        padding: 15px;
-        border-bottom: 1px solid #eee;
+        padding: 20px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(to bottom, #fafafa, #fff);
       }
+
+      .sidebar-section h3 {
+        margin: 0 0 16px 0;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-light);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
       .alert-list-container {
         flex: 1;
         overflow-y: auto;
+        background: var(--card-bg);
       }
+
+      .alert-list-container::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .alert-list-container::-webkit-scrollbar-track {
+        background: var(--bg);
+      }
+
+      .alert-list-container::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+
+      .alert-list-container::-webkit-scrollbar-thumb:hover {
+        background: var(--text-light);
+      }
+
       .alert-card {
-        padding: 12px;
-        border-bottom: 1px solid #f0f0f0;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
         cursor: pointer;
         display: flex;
-        align-items: center;
-        border-left: 6px solid transparent;
-        transition: background 0.2s;
+        align-items: flex-start;
+        border-left: 5px solid transparent;
+        transition: all 0.2s ease;
+        background: var(--card-bg);
       }
+
       .alert-card:hover {
-        background: #f8f9fa;
+        background: #f8fafc;
+        transform: translateX(2px);
       }
+
+      .alert-card.active {
+        background: #eff6ff;
+      }
+
+      .alert-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 14px;
+        flex-shrink: 0;
+        font-size: 1.2rem;
+      }
+
+      .alert-content {
+        flex: 1;
+        min-width: 0;
+      }
+
       .alert-card strong {
         display: block;
-        margin-bottom: 4px;
-        color: #333;
-      }
-      .alert-card small {
-        color: #666;
+        margin-bottom: 6px;
+        color: var(--text);
+        font-weight: 600;
+        font-size: 0.95rem;
         line-height: 1.4;
       }
+
+      .alert-card small {
+        color: var(--text-light);
+        line-height: 1.5;
+        font-size: 0.85rem;
+        display: block;
+      }
+
+      .alert-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        font-size: 0.75rem;
+        color: var(--text-light);
+      }
+
+      .alert-badge {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 500;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+      }
+
       #loader {
         position: fixed;
         top: 80px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2000;
-        background: white;
-        padding: 12px 24px;
-        border-radius: 30px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-        font-weight: bold;
+        background: var(--card-bg);
+        padding: 14px 28px;
+        border-radius: 50px;
+        box-shadow: var(--shadow-lg);
+        font-weight: 600;
         display: none;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid var(--border);
       }
+
+      #loader.show {
+        display: flex;
+        animation: slideDown 0.3s ease;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+      }
+
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
       .dot {
-        height: 12px;
-        width: 12px;
+        height: 14px;
+        width: 14px;
         border-radius: 50%;
         display: inline-block;
-        margin-right: 8px;
+        margin-right: 10px;
         vertical-align: middle;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
       }
+
+      .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+
       .legend-item {
-        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        font-size: 0.85rem;
+        color: var(--text);
+        padding: 6px 10px;
+        background: var(--bg);
+        border-radius: 6px;
+        transition: transform 0.2s;
+      }
+
+      .legend-item:hover {
+        transform: scale(1.02);
+      }
+
+      .status-bar {
+        padding: 12px 20px;
+        background: linear-gradient(to right, #f8fafc, #fff);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--success);
+        animation: pulse 2s ease infinite;
+      }
+
+      .status-dot.error {
+        background: var(--danger);
+        animation: none;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .last-updated {
+        font-size: 0.75rem;
+        color: var(--text-light);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        :root {
+          --sidebar-width: 100%;
+        }
+
+        .main-content {
+          flex-direction: column;
+        }
+
+        #sidebar {
+          order: 2;
+          max-height: 40vh;
+          border-right: none;
+          border-top: 1px solid var(--border);
+        }
+
+        #map {
+          order: 1;
+          min-height: 60vh;
+        }
+
+        .legend-grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+
+      /* Leaflet popup customization */
+      .leaflet-popup-content-wrapper {
+        border-radius: 12px;
+        box-shadow: var(--shadow-lg);
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .leaflet-popup-content {
+        margin: 0;
+        width: 280px !important;
+      }
+
+      .popup-header {
+        padding: 16px 16px 12px;
+        border-bottom: 1px solid var(--border);
+        background: #f8fafc;
+      }
+
+      .popup-body {
+        padding: 16px;
         font-size: 0.9rem;
+        line-height: 1.6;
+        color: var(--text);
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .popup-instruction {
+        padding: 12px 16px;
+        background: #fef3c7;
+        border-top: 1px solid var(--border);
+        font-size: 0.85rem;
       }
     </style>
   </head>
@@ -119,43 +434,61 @@
     <div class="container">
       <header>
         <h2>🇨🇦 Vigilance Météo (SMC/ECCC)</h2>
+        <div class="header-actions">
+          <button class="refresh-btn" onclick="loadData()" id="refreshBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Actualiser
+          </button>
+        </div>
       </header>
       <div class="main-content">
         <div id="sidebar">
           <div class="sidebar-section">
             <h3>Légende</h3>
-            <div class="legend-item">
-              <span class="dot" style="background: #e74c3c"></span>
-              Avertissement
-            </div>
-            <div class="legend-item">
-              <span class="dot" style="background: #e67e22"></span> Veille
-            </div>
-            <div class="legend-item">
-              <span class="dot" style="background: #f1c40f"></span> Avis
-            </div>
-            <div class="legend-item">
-              <span class="dot" style="background: #95a5a6"></span> Bulletin
-              spécial
+            <div class="legend-grid">
+              <div class="legend-item">
+                <span class="dot" style="background: #e74c3c"></span>
+                Avertissement
+              </div>
+              <div class="legend-item">
+                <span class="dot" style="background: #e67e22"></span>
+                Veille
+              </div>
+              <div class="legend-item">
+                <span class="dot" style="background: #f1c40f"></span>
+                Avis
+              </div>
+              <div class="legend-item">
+                <span class="dot" style="background: #95a5a6"></span>
+                Bulletin spécial
+              </div>
             </div>
           </div>
-          <div
-            class="sidebar-section"
-            style="border-bottom: none; padding-bottom: 5px"
-          >
-            <h3 id="alert-status" style="margin: 0 0 10px 0; font-size: 1rem">
-              Chargement...
-            </h3>
+          <div class="status-bar">
+            <div class="status-indicator">
+              <span class="status-dot" id="statusDot"></span>
+              <span id="alert-status">Chargement...</span>
+            </div>
+            <span class="last-updated" id="lastUpdated"></span>
           </div>
           <div id="alert-list" class="alert-list-container"></div>
         </div>
         <div id="map"></div>
       </div>
     </div>
-    <div id="loader">Récupération des données SMC...</div>
+    <div id="loader">
+      <div class="spinner"></div>
+      <span>Récupération des données SMC...</span>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+      // Configuration
+      const API_URL = "http://localhost:3000/api/alerts";
+
       // 1. Initialize Map
       const map = L.map("map").setView([58, -95], 4);
 
@@ -170,52 +503,87 @@
 
       // Helper: Get Color based on priority/type
       function getColor(properties) {
-        const type = properties.type || "";
+        const type = properties.type || properties.event || "";
         const priority = properties.priority || "";
 
-        if (type.includes("Warning") || priority === "High") return "#e74c3c"; // Red
-        if (type.includes("Watch")) return "#e67e22"; // Orange
-        if (type.includes("Statement")) return "#f1c40f"; // Yellow
+        if (
+          type.toLowerCase().includes("warning") ||
+          type.toLowerCase().includes("avertissement") ||
+          priority === "High"
+        )
+          return "#e74c3c"; // Red
+        if (
+          type.toLowerCase().includes("watch") ||
+          type.toLowerCase().includes("veille")
+        )
+          return "#e67e22"; // Orange
+        if (
+          type.toLowerCase().includes("statement") ||
+          type.toLowerCase().includes("avis")
+        )
+          return "#f1c40f"; // Yellow
 
         return "#95a5a6"; // Grey/Default
       }
 
+      // Helper: Get icon emoji based on type
+      function getIcon(type) {
+        const lowerType = (type || "").toLowerCase();
+        if (lowerType.includes("warning") || lowerType.includes("avertissement"))
+          return "⚠️";
+        if (lowerType.includes("watch") || lowerType.includes("veille"))
+          return "👁️";
+        if (lowerType.includes("statement") || lowerType.includes("avis"))
+          return "📋";
+        return "🌤️";
+      }
+
+      // Helper: Format timestamp
+      function formatTime(date) {
+        if (!date) return "";
+        const d = new Date(date);
+        return d.toLocaleTimeString("fr-CA", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      let isLoading = false;
+
       async function loadData() {
+        if (isLoading) return;
+        isLoading = true;
+
         const loader = document.getElementById("loader");
         const listContainer = document.getElementById("alert-list");
         const statusLabel = document.getElementById("alert-status");
+        const statusDot = document.getElementById("statusDot");
+        const lastUpdated = document.getElementById("lastUpdated");
+        const refreshBtn = document.getElementById("refreshBtn");
 
-        loader.style.display = "block";
-        loader.innerText = "Récupération des données SMC...";
-
-        // Official ECCC GeoJSON Feed
-        const originalUrl =
-          "https://dd.weather.gc.ca/alerts/cap/geodata/EC_alerts_map_polygons_en.geojson";
-
-        // We use a CORS proxy to bypass browser security restrictions
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
-          originalUrl
-        )}`;
+        // Show loading state
+        loader.classList.add("show");
+        refreshBtn.classList.add("refreshing");
+        statusDot.classList.remove("error");
 
         try {
-          const response = await fetch(proxyUrl);
+          const response = await fetch(API_URL);
           if (!response.ok)
-            throw new Error("Erreur réseau lors de la connexion au proxy");
+            throw new Error("Erreur réseau lors de la récupération des données");
 
-          const dataWrapper = await response.json();
+          const data = await response.json();
 
-          // allorigins returns the actual content in a 'contents' string
-          if (!dataWrapper.contents)
-            throw new Error("Le proxy n'a retourné aucune donnée");
+          loader.classList.remove("show");
+          refreshBtn.classList.remove("refreshing");
 
-          const data = JSON.parse(dataWrapper.contents);
+          // Update last updated time
+          lastUpdated.textContent = formatTime(new Date());
 
-          loader.style.display = "none";
           listContainer.innerHTML = "";
 
           let activeCount = 0;
 
-          // Clear existing layers
+          // Clear existing layers (except base tile layer)
           map.eachLayer((layer) => {
             if (!!layer.toGeoJSON && !layer._url) {
               map.removeLayer(layer);
@@ -223,7 +591,9 @@
           });
 
           if (!data.features || data.features.length === 0) {
-            statusLabel.innerText = "Aucune alerte active";
+            statusLabel.textContent = "Aucune alerte active";
+            statusDot.classList.add("error");
+            isLoading = false;
             return;
           }
 
@@ -244,48 +614,72 @@
 
               activeCount++;
 
-              // Popup Content
-              const title = props.event || "Alerte Météo";
+              // Popup Content with improved styling
+              const title = props.event || props.title || "Alerte Météo";
               const desc = props.description || "Pas de description.";
               const instruction = props.instruction
-                ? `<br><br><b>Consignes:</b> ${props.instruction}`
+                ? `<div class="popup-instruction"><strong>⚠️ Consignes:</strong><br>${props.instruction}</div>`
                 : "";
 
               layer.bindPopup(`
-                <div style="min-width: 200px">
-                  <strong style="color:${getColor(
-                    props
-                  )}; font-size:1.1em">${title}</strong><br>
-                  <span style="font-size:0.9em; color:#555">${
-                    props.areaDesc || ""
-                  }</span>
-                  <hr style="border:0; border-top:1px solid #eee; margin: 8px 0;">
-                  <div style="font-size:0.85em; max-height: 150px; overflow-y:auto;">${desc}</div>
+                <div>
+                  <div class="popup-header">
+                    <strong style="color:${getColor(
+                      props
+                    )}; font-size:1.1em">${getIcon(props.type)} ${title}</strong>
+                  </div>
+                  <div class="popup-body">
+                    <div style="margin-bottom: 8px; font-weight: 500;">${
+                      props.areaDesc || ""
+                    }</div>
+                    <div style="font-size:0.9em; line-height: 1.6; color: var(--text);">${desc}</div>
+                  </div>
                   ${instruction}
                 </div>
               `);
 
-              // Sidebar Card
+              // Sidebar Card with improved design
               const card = document.createElement("div");
               card.className = "alert-card";
               card.style.borderLeftColor = getColor(props);
 
               const shortDesc = props.description
-                ? props.description.substring(0, 60) + "..."
+                ? props.description.replace(/<[^>]*>/g, "").substring(0, 80) + "..."
                 : "";
 
               card.innerHTML = `
-                <div>
+                <div class="alert-icon" style="background: ${getColor(
+                  props
+                )}20; color: ${getColor(props)}">
+                  ${getIcon(props.type)}
+                </div>
+                <div class="alert-content">
                   <strong>${title}</strong>
-                  <small>${props.areaDesc || "Canada"}<br>${shortDesc}</small>
+                  <small>${props.areaDesc || "Canada"}</small>
+                  <div class="alert-meta">
+                    <span class="alert-badge" style="background: ${getColor(
+                      props
+                    )}20; color: ${getColor(props)}">${
+                props.priority || "Normal"
+              }</span>
+                  </div>
                 </div>
               `;
 
               card.onclick = () => {
+                // Remove active class from all cards
+                document.querySelectorAll(".alert-card").forEach((c) => {
+                  c.classList.remove("active");
+                });
+                card.classList.add("active");
+
                 if (layer.getBounds && layer.getBounds().isValid()) {
-                  map.flyToBounds(layer.getBounds(), { padding: [50, 50] });
+                  map.flyToBounds(layer.getBounds(), {
+                    padding: [50, 50],
+                    duration: 1.5,
+                  });
                 } else if (layer.getLatLng) {
-                  map.flyTo(layer.getLatLng(), 8);
+                  map.flyTo(layer.getLatLng(), 8, { duration: 1.5 });
                 }
                 layer.openPopup();
               };
@@ -294,16 +688,50 @@
             },
           }).addTo(map);
 
-          statusLabel.innerText = `${activeCount} bulletins actifs`;
+          statusLabel.textContent = `${activeCount} bulletin${
+            activeCount > 1 ? "s" : ""
+          } actif${activeCount > 1 ? "s" : ""}`;
+          statusDot.classList.remove("error");
+
+          // Auto-fit map to show all alerts
+          try {
+            const group = new L.featureGroup(
+              map.getLayers().filter((l) => l.toGeoJSON && l !== map._tileLayer)
+            );
+            if (group.getLayers().length > 0) {
+              map.fitBounds(group.getBounds(), { padding: [50, 50] });
+            }
+          } catch (e) {
+            // Ignore fit bounds errors
+          }
         } catch (error) {
           console.error("Erreur détaillée:", error);
-          loader.innerHTML = `<span style="color:red">Erreur : ${error.message}</span>`;
-          statusLabel.innerText = "Échec du chargement";
+          loader.classList.remove("show");
+          refreshBtn.classList.remove("refreshing");
+
+          statusLabel.textContent = "Erreur de chargement";
+          statusDot.classList.add("error");
+
+          // Show error in loader briefly
+          const loaderText = loader.querySelector("span");
+          if (loaderText) {
+            loaderText.textContent = `Erreur: ${error.message}`;
+            loaderText.style.color = "var(--danger)";
+            setTimeout(() => {
+              loaderText.textContent = "Récupération des données SMC...";
+              loaderText.style.color = "";
+            }, 3000);
+          }
+        } finally {
+          isLoading = false;
         }
       }
 
-      // Run
+      // Initial load
       loadData();
+
+      // Auto-refresh every 5 minutes
+      setInterval(loadData, 5 * 60 * 1000);
     </script>
   </body>
 </html>
