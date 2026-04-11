@@ -2,56 +2,62 @@
 # Dependencies
 node_modules/
 
+# Environment
+.env
+.env.local
+.env.
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
 # Build artifacts
 dist/
 build/
 target/
-
-# Environment variables
-.env
-.env.local
-.env.*
-
-# Editors
-.vscode/
-.idea/
-
-# Logs and temporary files
-*.log
-*.tmp
-*.swp
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Java
-*.class
-*.jar
-*.war
-*.ear
-*.nar
-target/
-.gradle/
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git/modules/
+.DS_Store
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.vscode/
 
 # Node.js
-node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+node_modules/
+jspm_packages/
+web_modules/
+*.min.js
+*.min.css
 
-# Compiled and binary files
-*.o
-*.obj
-*.so
-*.a
-*.dll
-*.exe
-*.out
-
-# Compression files
+# Compressed archives
 *.zip
 *.gz
 *.tar
@@ -75,7 +81,4 @@ yarn-error.log*
 *.tar.xz
 *.tar.zst
 
-# System files
-.DS_Store
-Thumbs.db
 ```

@@ -1,9 +1,4 @@
-const axios = require("axios");
-
-// Official ECCC GeoJSON Feed URL
-const SMC_URL =
-  "https://dd.weather.gc.ca/alerts/cap/geodata/EC_alerts_map_polygons_en.geojson";
-
+// Netlify Function to fetch weather alerts from Environment Canada
 exports.handler = async (event, context) => {
   // Handle CORS preflight requests
   if (event.httpMethod === "OPTIONS") {
@@ -32,22 +27,30 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const response = await axios.get(SMC_URL, {
-      timeout: 10000, // 10 second timeout
+    const SMC_URL =
+      "https://dd.weather.gc.ca/alerts/cap/geodata/EC_alerts_map_polygons_en.geojson";
+    
+    const response = await fetch(SMC_URL, {
       headers: {
         "User-Agent": "Weather-Alert-App/1.0",
         Accept: "application/json",
       },
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
     // Validate response data
-    if (!response.data || !response.data.features) {
+    if (!data || !data.features) {
       throw new Error("Invalid data format from SMC");
     }
 
     // Add server timestamp to response
     const dataWithTimestamp = {
-      ...response.data,
+      ...data,
       serverTimestamp: new Date().toISOString(),
     };
 
@@ -67,10 +70,8 @@ exports.handler = async (event, context) => {
 
     // Determine appropriate status code
     let statusCode = 500;
-    if (error.code === "ECONNABORTED") {
+    if (error.message.includes("timeout")) {
       statusCode = 504; // Gateway Timeout
-    } else if (error.response && error.response.status) {
-      statusCode = error.response.status;
     }
 
     return {
